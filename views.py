@@ -16,58 +16,50 @@ from horizon.utils import memoized
 from horizon import workflows
 
 from openstack_dashboard import api
-
 import urllib2
 import json
 
-from openstack_dashboard.dashboards.cmpe281billing.cmpe281paymentmethodpanel \
+
+from openstack_dashboard.dashboards.cmpe281billing.cmpe281billitemspanel \
 import tables as project_tables
 
-from openstack_dashboard.dashboards.cmpe281billing.cmpe281paymentmethodpanel \
-    import workflows as project_workflows
+from openstack_dashboard.dashboards.cmpe281billing.cmpe281billitemspanel \
+import tabs as project_tabs
 
-class PaymentMethod:
-	def __init__(self,id,identity,vendor,valid_thru,type,tenant_id):
-	  self.id = id
-	  self.card_num=identity
-	  self.vendor=vendor.lower()
-	  self.exp_month=valid_thru[0:2]
-	  self.exp_yr=valid_thru[2:4]
-	  self.type = type
-	  self.tenant_id = tenant_id
+class BillItem:
+	def __init__(self,bill_item_id,desc,start_date,end_date,charge_amt,usage_amt,entity_name,currency):
+	  self.id=bill_item_id
+	  self.desc=desc
+	  self.start_date=start_date
+	  self.end_date=end_date
+	  self.charge_amt=charge_amt
+	  self.usage_amt=usage_amt
+	  self.currency=currency
+	  self.entity_name=entity_name
 
 
 class IndexView(tables.DataTableView):
     table_class = project_tables.InstancesTable
-    template_name = 'cmpe281billing/cmpe281paymentmethodpanel/index.html'
-    page_title = _("Payment Method")
+    template_name = 'cmpe281billing/cmpe281billitemspanel/index.html'
+    page_title = _("Bill Items")
+
     def get_data(self):
-    #    strobj = urllib2.urlopen('http://localhost:9000/billing/payment_method/f7ac731cc11f40efbc03a9f9e1d1d21f') 
-	print "tenant id is : " + self.request.user.tenant_id
-	url = "http://localhost:9000/billing/payment_method/"+ self.request.user.tenant_id
-        strobj = urllib2.urlopen(url) 
-        payment_methods = json.load(strobj) 
+        #strobj = urllib2.urlopen('http://localhost:9000/billing/bill/'+self.request.user.tenant_id) 
+        strobj = urllib2.urlopen('http://localhost:9000/billing/bill/f7ac731cc11f40efbc03a9f9e1d1d21f') 
+        bills = json.load(strobj) 
         # Gather our instances
 	ret = []
-
-	for vpayment in payment_methods:
-		ret.append(PaymentMethod(vpayment['payment_method_id'],
-			   vpayment['identity'],
-			   vpayment['vendor'],
-			   vpayment['valid_through'],
-			   vpayment['type'],
-			   vpayment['tenant_id']
+	for vbill in bills:
+		for item in vbill['billing_item']:
+		        ret.append(BillItem(item['bill_item_id'],
+			   item['description'],
+			   item['billing_period_start_time'],
+			   item['billing_period_end_time'],
+			   item['charge_amount'],
+			   item['usage_amount'],
+			   item['entity_name'],
+			   'USD'
 			   ))
-	return ret
+		return ret
 
-
-
-class PayBillView(workflows.WorkflowView):
-    workflow_class = project_workflows.PayBill
-
-    def get_initial(self):
-        initial = super(PayBillView, self).get_initial()
-        initial['project_id'] = self.request.user.tenant_id
-        initial['user_id'] = self.request.user.id
-        return initial
 
